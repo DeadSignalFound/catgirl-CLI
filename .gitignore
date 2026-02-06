@@ -34,6 +34,11 @@ catgirl.spec
 # Runtime-generated content
 downloads/
 
+# Environment files
+.env
+.env.*
+!.env.example
+
 # IDE/editor files
 .vscode/
 .idea/

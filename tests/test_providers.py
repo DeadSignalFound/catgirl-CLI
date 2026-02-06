@@ -2,10 +2,12 @@ import re
 
 import pytest
 
+from catgirl_downloader.providers.e621 import E621Provider, parse_e621_payload
 from catgirl_downloader.providers.nekobot import NekobotProvider, parse_nekobot_payload
 from catgirl_downloader.providers.nekos_best import NekosBestProvider, parse_nekos_best_payload
 from catgirl_downloader.providers.nekos_life import NekosLifeProvider, parse_nekos_life_payload
 from catgirl_downloader.providers.nekosapi import NekosApiProvider, parse_nekosapi_payload
+from catgirl_downloader.providers.rule34 import Rule34Provider, parse_rule34_payload
 from catgirl_downloader.providers.waifu_pics import WaifuPicsProvider, parse_waifu_pics_payload
 
 
@@ -96,6 +98,32 @@ def test_parse_nekobot_payload() -> None:
     assert url == "https://img.example/neko.png"
 
 
+def test_parse_e621_payload() -> None:
+    payload = {
+        "posts": [
+            {
+                "file": {"url": "https://img.example/femboy.jpg"},
+                "rating": "q",
+                "tags": {"general": ["femboy", "solo"]},
+            }
+        ]
+    }
+    parsed = parse_e621_payload(payload, theme="femboy")
+    assert len(parsed) == 1
+    assert parsed[0].provider == "e621"
+    assert parsed[0].category == "femboy"
+    assert parsed[0].rating == "suggestive"
+
+
+def test_parse_rule34_payload() -> None:
+    payload = [{"file_url": "https://img.example/r34.jpg", "rating": "explicit", "tags": "femboy solo"}]
+    parsed = parse_rule34_payload(payload, theme="femboy")
+    assert len(parsed) == 1
+    assert parsed[0].provider == "rule34"
+    assert parsed[0].category == "femboy"
+    assert parsed[0].rating == "explicit"
+
+
 @pytest.mark.anyio
 async def test_nekos_best_provider_fetch_kitsune(httpx_mock) -> None:
     httpx_mock.add_response(
@@ -148,3 +176,113 @@ async def test_nekobot_provider_fetch(httpx_mock) -> None:
     assert len(candidates) == 1
     assert candidates[0].provider == "nekobot"
     assert candidates[0].category == "neko"
+
+
+@pytest.mark.anyio
+async def test_e621_provider_fetch(httpx_mock, monkeypatch) -> None:
+    monkeypatch.setenv("E621_USER_AGENT", "catgirl-downloader-tests/1.0")
+    httpx_mock.add_response(
+        url=re.compile(r"https://e621\.net/posts\.json.*"),
+        json={
+            "posts": [
+                {
+                    "file": {"url": "https://img.example/e621-femboy.jpg"},
+                    "rating": "e",
+                    "tags": {"general": ["femboy"]},
+                }
+            ]
+        },
+    )
+
+    provider = E621Provider()
+    candidates = await provider.fetch_candidates(count=1, rating="explicit", timeout=10.0, theme="femboy")
+
+    assert len(candidates) == 1
+    assert candidates[0].provider == "e621"
+    assert candidates[0].category == "femboy"
+    assert candidates[0].rating == "explicit"
+
+
+@pytest.mark.anyio
+async def test_e621_provider_fetch_randomized_uses_page_and_larger_limit(httpx_mock, monkeypatch) -> None:
+    monkeypatch.setenv("E621_USER_AGENT", "catgirl-downloader-tests/1.0")
+    monkeypatch.setattr("catgirl_downloader.providers.e621.random.randint", lambda a, b: 7)
+    httpx_mock.add_response(
+        url=re.compile(r"https://e621\.net/posts\.json.*"),
+        json={
+            "posts": [
+                {"file": {"url": "https://img.example/e621-a.jpg"}, "rating": "s"},
+                {"file": {"url": "https://img.example/e621-b.jpg"}, "rating": "q"},
+                {"file": {"url": "https://img.example/e621-c.jpg"}, "rating": "e"},
+            ]
+        },
+    )
+
+    provider = E621Provider()
+    candidates = await provider.fetch_candidates(
+        count=2,
+        rating="any",
+        timeout=10.0,
+        theme="femboy",
+        randomize=True,
+    )
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    assert requests[0].url.params["page"] == "7"
+    assert requests[0].url.params["limit"] == "16"
+    assert len(candidates) == 2
+
+
+@pytest.mark.anyio
+async def test_rule34_provider_fetch(httpx_mock, monkeypatch) -> None:
+    monkeypatch.setenv("RULE34_USER_ID", "123")
+    monkeypatch.setenv("RULE34_API_KEY", "abc")
+    httpx_mock.add_response(
+        url=re.compile(r"https://api\.rule34\.xxx/index\.php.*"),
+        json=[
+            {
+                "file_url": "https://img.example/r34-femboy.jpg",
+                "rating": "questionable",
+                "tags": "femboy solo",
+            }
+        ],
+    )
+
+    provider = Rule34Provider()
+    candidates = await provider.fetch_candidates(count=1, rating="suggestive", timeout=10.0, theme="femboy")
+
+    assert len(candidates) == 1
+    assert candidates[0].provider == "rule34"
+    assert candidates[0].category == "femboy"
+    assert candidates[0].rating == "suggestive"
+
+
+@pytest.mark.anyio
+async def test_rule34_provider_fetch_randomized_uses_pid_and_larger_limit(httpx_mock, monkeypatch) -> None:
+    monkeypatch.setenv("RULE34_USER_ID", "123")
+    monkeypatch.setenv("RULE34_API_KEY", "abc")
+    monkeypatch.setattr("catgirl_downloader.providers.rule34.random.randint", lambda a, b: 9)
+    httpx_mock.add_response(
+        url=re.compile(r"https://api\.rule34\.xxx/index\.php.*"),
+        json=[
+            {"file_url": "https://img.example/r34-a.jpg", "rating": "safe", "tags": "femboy solo"},
+            {"file_url": "https://img.example/r34-b.jpg", "rating": "questionable", "tags": "femboy solo"},
+            {"file_url": "https://img.example/r34-c.jpg", "rating": "explicit", "tags": "femboy solo"},
+        ],
+    )
+
+    provider = Rule34Provider()
+    candidates = await provider.fetch_candidates(
+        count=2,
+        rating="any",
+        timeout=10.0,
+        theme="femboy",
+        randomize=True,
+    )
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 1
+    assert requests[0].url.params["pid"] == "9"
+    assert requests[0].url.params["limit"] == "16"
+    assert len(candidates) == 2

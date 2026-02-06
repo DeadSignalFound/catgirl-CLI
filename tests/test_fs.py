@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 
-from catgirl_downloader.fs import build_filename, extension_from_content_type
+from catgirl_downloader.fs import build_filename, extension_from_content_type, rating_safety_bucket
 
 
 def test_extension_from_content_type_takes_priority() -> None:
@@ -23,3 +23,11 @@ def test_build_filename_format() -> None:
     now = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
     file_name = build_filename("nekosapi", "https://example.com/image.png", ".png", now=now)
     assert re.fullmatch(r"nekosapi_20260102T030405_[0-9a-f]{10}\.png", file_name)
+
+
+def test_rating_safety_bucket() -> None:
+    assert rating_safety_bucket("safe") == "sfw"
+    assert rating_safety_bucket("suggestive") == "nsfw"
+    assert rating_safety_bucket("borderline") == "nsfw"
+    assert rating_safety_bucket("explicit") == "nsfw"
+    assert rating_safety_bucket("unknown") == "unknown"

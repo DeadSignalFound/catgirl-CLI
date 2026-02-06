@@ -17,5 +17,6 @@ class Provider(Protocol):
         rating: UserRating,
         timeout: float,
         theme: Theme,
+        randomize: bool = False,
     ) -> list[RemoteImage]:
         ...

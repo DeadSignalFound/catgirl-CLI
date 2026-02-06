@@ -178,3 +178,43 @@ async def test_auto_provider_for_kitsune_uses_multiple_apis(httpx_mock, tmp_path
     assert summary.downloaded == 2
     assert warnings == []
     assert providers == {"nekos_best", "nekos_life"}
+
+
+@pytest.mark.anyio
+async def test_auto_provider_for_femboy_uses_e621_fallback(httpx_mock, tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("E621_USER_AGENT", "catgirl-downloader-tests/1.0")
+    httpx_mock.add_response(
+        url=re.compile(r"https://e621\.net/posts\.json.*"),
+        json={
+            "posts": [
+                {
+                    "file": {"url": "https://img.example/e621-safe.jpg"},
+                    "rating": "s",
+                    "tags": {"general": ["femboy"]},
+                }
+            ]
+        },
+    )
+    httpx_mock.add_response(
+        url="https://img.example/e621-safe.jpg",
+        headers={"content-type": "image/jpeg"},
+        content=b"e621",
+    )
+
+    results, summary, warnings = await run_download(
+        count=1,
+        provider_name="auto",
+        out_dir=tmp_path,
+        concurrency=1,
+        retries=1,
+        timeout=10.0,
+        rating="safe",
+        theme="femboy",
+    )
+
+    ok_results = [result for result in results if result.status == "ok"]
+    assert summary.requested == 1
+    assert summary.downloaded == 1
+    assert warnings == []
+    assert len(ok_results) == 1
+    assert ok_results[0].provider == "e621"

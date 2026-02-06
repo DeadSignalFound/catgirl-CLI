@@ -9,6 +9,7 @@ from typing import Annotated, Any
 
 import anyio
 import typer
+from dotenv import load_dotenv
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -29,10 +30,11 @@ except Exception:  # pragma: no cover - optional dependency fallback
 app = typer.Typer(
     add_completion=False,
     invoke_without_command=True,
-    help="Download catgirl/neko/kitsune images from public APIs.",
+    help="Download catgirl/neko/kitsune/femboy images from public APIs.",
 )
 
 CONSOLE = Console(highlight=False)
+load_dotenv()
 
 
 class ProviderChoice(str, Enum):
@@ -42,6 +44,8 @@ class ProviderChoice(str, Enum):
     NEKOS_BEST = "nekos_best"
     NEKOS_LIFE = "nekos_life"
     NEKOBOT = "nekobot"
+    E621 = "e621"
+    RULE34 = "rule34"
 
 
 class RatingChoice(str, Enum):
@@ -56,10 +60,22 @@ class ThemeChoice(str, Enum):
     CATGIRL = "catgirl"
     NEKO = "neko"
     KITSUNE = "kitsune"
+    FEMBOY = "femboy"
 
 
 REPL_COMMANDS = ["help", "show", "set", "run", "providers", "categories", "clear", "exit", "quit"]
-SETTABLE_FIELDS = ["count", "provider", "theme", "rating", "out", "concurrency", "retries", "timeout", "verbose"]
+SETTABLE_FIELDS = [
+    "count",
+    "provider",
+    "theme",
+    "rating",
+    "randomize",
+    "out",
+    "concurrency",
+    "retries",
+    "timeout",
+    "verbose",
+]
 SET_FIELD_SUGGESTIONS: dict[str, list[str]] = {
     "count": ["1", "5", "10", "25", "50", "100"],
     "provider": [choice.value for choice in ProviderChoice],
@@ -70,6 +86,8 @@ SET_FIELD_SUGGESTIONS: dict[str, list[str]] = {
     "retries": ["0", "1", "2", "3", "4", "5"],
     "timeout": ["10", "20", "30", "60", "120"],
     "verbose": ["true", "false", "yes", "no", "1", "0"],
+    "randomize": ["true", "false", "yes", "no", "1", "0"],
+    "random": ["true", "false", "yes", "no", "1", "0"],
 }
 
 
@@ -159,6 +177,7 @@ def _parse_theme(value: str) -> ThemeChoice:
     aliases = {
         "catgirls": "catgirl",
         "nekos": "neko",
+        "femboys": "femboy",
     }
     normalized = aliases.get(normalized, normalized)
     try:
@@ -231,6 +250,7 @@ def _format_settings(settings: dict[str, object]) -> list[tuple[str, object]]:
         ("provider", settings["provider"]),
         ("theme", settings["theme"]),
         ("rating", settings["rating"]),
+        ("randomize", settings["randomize"]),
         ("out", settings["out"]),
         ("concurrency", settings["concurrency"]),
         ("retries", settings["retries"]),
@@ -256,7 +276,7 @@ def _print_repl_help() -> None:
     CONSOLE.print(help_table)
     CONSOLE.print(
         Text(
-            "Fields: count, provider, theme, rating, out, concurrency, retries, timeout, verbose",
+            "Fields: count, provider, theme, rating, randomize, out, concurrency, retries, timeout, verbose",
             style="dim",
         )
     )
@@ -297,6 +317,9 @@ def _update_setting(settings: dict[str, object], field: str, raw_value: str) -> 
         return
     if key == "rating":
         settings["rating"] = _parse_rating(raw_value)
+        return
+    if key in {"randomize", "random", "r"}:
+        settings["randomize"] = _parse_bool(raw_value)
         return
     if key == "out":
         settings["out"] = Path(raw_value)
@@ -351,6 +374,7 @@ def _run_download(
     timeout: float,
     theme: ThemeChoice,
     rating: RatingChoice,
+    randomize: bool,
     verbose: bool,
 ) -> int:
     _configure_logging(verbose)
@@ -364,6 +388,7 @@ def _run_download(
         timeout=timeout,
         theme=theme.value,
         rating=rating.value,
+        randomize=randomize,
     )
 
     try:
@@ -404,6 +429,7 @@ def main(ctx: typer.Context) -> None:
         "provider": ProviderChoice.AUTO,
         "theme": ThemeChoice.CATGIRL,
         "rating": RatingChoice.ANY,
+        "randomize": False,
         "out": Path("./downloads"),
         "concurrency": 4,
         "retries": 3,
@@ -455,9 +481,12 @@ def main(ctx: typer.Context) -> None:
                 field = parts[1]
                 value = " ".join(parts[2:])
                 _update_setting(settings, field, value)
+                display_key = field.strip().lower()
+                if display_key in {"random", "r"}:
+                    display_key = "randomize"
                 CONSOLE.print(
                     Text(
-                        f"Updated {field.strip().lower()} = {_display_value(settings[field.strip().lower()])}",
+                        f"Updated {display_key} = {_display_value(settings[display_key])}",
                         style="bold green",
                     )
                 )
@@ -473,6 +502,7 @@ def main(ctx: typer.Context) -> None:
                     timeout=settings["timeout"],  # type: ignore[arg-type]
                     theme=settings["theme"],  # type: ignore[arg-type]
                     rating=settings["rating"],  # type: ignore[arg-type]
+                    randomize=settings["randomize"],  # type: ignore[arg-type]
                     verbose=settings["verbose"],  # type: ignore[arg-type]
                 )
                 if code == 0:
@@ -551,9 +581,17 @@ def download(
         RatingChoice,
         typer.Option("--rating", help="Requested content rating."),
     ] = RatingChoice.ANY,
+    randomize: Annotated[
+        bool,
+        typer.Option(
+            "--randomize",
+            "-r",
+            help="Randomize provider queries to avoid repeated top results.",
+        ),
+    ] = False,
     verbose: Annotated[bool, typer.Option("--verbose", help="Enable debug logging.")] = False,
 ) -> None:
-    """Download catgirl/neko/kitsune images."""
+    """Download catgirl/neko/kitsune/femboy images."""
     code = _run_download(
         count=count,
         provider=provider,
@@ -563,6 +601,7 @@ def download(
         timeout=timeout,
         theme=theme,
         rating=rating,
+        randomize=randomize,
         verbose=verbose,
     )
     raise typer.Exit(code=code)

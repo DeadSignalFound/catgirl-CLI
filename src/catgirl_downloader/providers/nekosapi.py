@@ -54,6 +54,7 @@ class NekosApiProvider:
         rating: UserRating,
         timeout: float,
         theme: Theme,
+        randomize: bool = False,
     ) -> list[RemoteImage]:
         if count <= 0:
             return []
@@ -77,3 +78,4 @@ class NekosApiProvider:
             LOGGER.warning("nekosapi returned unexpected payload type: %s", type(payload).__name__)
             return []
         return parse_nekosapi_payload(payload, theme=theme)
+

@@ -17,8 +17,20 @@ CONTENT_TYPE_EXTENSION_MAP = {
 }
 
 
-def ensure_category_dir(base_dir: Path, category: str) -> Path:
-    target_dir = base_dir / category
+def rating_safety_bucket(rating: str) -> str:
+    normalized = rating.strip().lower()
+    if normalized == "safe":
+        return "sfw"
+    if normalized in {"suggestive", "borderline", "explicit"}:
+        return "nsfw"
+    return "unknown"
+
+
+def ensure_media_dir(base_dir: Path, category: str, rating: str) -> Path:
+    bucket = rating_safety_bucket(rating)
+    normalized_category = category.strip().lower() or "unknown"
+    normalized_rating = rating.strip().lower() or "unknown"
+    target_dir = base_dir / bucket / normalized_category / normalized_rating
     target_dir.mkdir(parents=True, exist_ok=True)
     return target_dir
 

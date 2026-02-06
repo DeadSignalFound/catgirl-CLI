@@ -16,6 +16,8 @@ def test_providers_command_lists_known_providers() -> None:
     assert "nekos_best" in result.output
     assert "nekos_life" in result.output
     assert "nekobot" in result.output
+    assert "e621" in result.output
+    assert "rule34" in result.output
 
 
 def test_categories_command_lists_fixed_mappings() -> None:
@@ -27,6 +29,8 @@ def test_categories_command_lists_fixed_mappings() -> None:
     assert "catgirl" in result.output
     assert "nekos_best" in result.output
     assert "catgirl,neko,kitsune" in result.output
+    assert "e621" in result.output
+    assert "femboy" in result.output
 
 
 def test_download_count_three_writes_files(httpx_mock, tmp_path: Path) -> None:
@@ -71,9 +75,41 @@ def test_download_count_three_writes_files(httpx_mock, tmp_path: Path) -> None:
         ],
     )
 
-    files = list((tmp_path / "catgirl").glob("*"))
+    files = list((tmp_path / "sfw" / "catgirl" / "safe").glob("*"))
     assert result.exit_code == 0
     assert len(files) == 3
+
+
+def test_download_short_random_flag_is_accepted(httpx_mock, tmp_path: Path) -> None:
+    httpx_mock.add_response(
+        url=re.compile(r"https://api\.nekosapi\.com/v4/images/random.*"),
+        json={"value": [{"url": "https://img.example/random.png", "rating": "safe", "tags": ["catgirl"]}]},
+    )
+    httpx_mock.add_response(
+        url="https://img.example/random.png",
+        headers={"content-type": "image/png"},
+        content=b"random",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "download",
+            "--count",
+            "1",
+            "--provider",
+            "nekosapi",
+            "--rating",
+            "safe",
+            "-r",
+            "--out",
+            str(tmp_path),
+        ],
+    )
+
+    files = list((tmp_path / "sfw" / "catgirl" / "safe").glob("*"))
+    assert result.exit_code == 0
+    assert len(files) == 1
 
 
 def test_download_unsupported_waifu_rating_exits_non_zero(tmp_path: Path) -> None:
@@ -132,7 +168,7 @@ def test_no_args_launches_interactive_mode(httpx_mock, tmp_path: Path) -> None:
     )
     result = runner.invoke(app, [], input=user_input + "\n")
 
-    files = list((tmp_path / "catgirl").glob("*"))
+    files = list((tmp_path / "sfw" / "catgirl" / "safe").glob("*"))
     assert result.exit_code == 0
     assert "CATGIRL INTERACTIVE MODE" in result.output
     assert "catgirl >" in result.output
@@ -163,3 +199,15 @@ def test_repl_completion_suggests_theme_values() -> None:
     suggestions, start_position = _suggest_repl_completions("set theme k")
     assert "kitsune" in suggestions
     assert start_position == -1
+
+
+def test_repl_completion_suggests_femboy_theme() -> None:
+    suggestions, start_position = _suggest_repl_completions("set theme f")
+    assert "femboy" in suggestions
+    assert start_position == -1
+
+
+def test_repl_completion_suggests_randomize_field() -> None:
+    suggestions, start_position = _suggest_repl_completions("set random")
+    assert "randomize" in suggestions
+    assert start_position == -6

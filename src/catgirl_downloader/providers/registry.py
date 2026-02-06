@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from catgirl_downloader.models import Theme, UserRating
 from catgirl_downloader.providers.base import Provider
+from catgirl_downloader.providers.e621 import E621Provider
 from catgirl_downloader.providers.nekosapi import NekosApiProvider
 from catgirl_downloader.providers.nekobot import NekobotProvider
 from catgirl_downloader.providers.nekos_best import NekosBestProvider
 from catgirl_downloader.providers.nekos_life import NekosLifeProvider
+from catgirl_downloader.providers.rule34 import Rule34Provider
 from catgirl_downloader.providers.waifu_pics import WaifuPicsProvider
 
 _PROVIDERS: dict[str, Provider] = {
@@ -14,6 +16,8 @@ _PROVIDERS: dict[str, Provider] = {
     "nekos_best": NekosBestProvider(),
     "nekos_life": NekosLifeProvider(),
     "nekobot": NekobotProvider(),
+    "e621": E621Provider(),
+    "rule34": Rule34Provider(),
 }
 
 _RATING_NOTES: dict[str, str] = {
@@ -22,6 +26,8 @@ _RATING_NOTES: dict[str, str] = {
     "nekos_best": "any|safe",
     "nekos_life": "any|safe",
     "nekobot": "any|safe",
+    "e621": "any|safe|suggestive|borderline|explicit",
+    "rule34": "any|safe|suggestive|borderline|explicit",
 }
 
 
@@ -74,6 +80,8 @@ def get_auto_provider_order(rating: UserRating, theme: Theme) -> list[str]:
         order = ["nekosapi", "waifu_pics", "nekos_life", "nekobot", "nekos_best"]
     elif theme == "neko":
         order = ["waifu_pics", "nekos_best", "nekos_life", "nekobot", "nekosapi"]
+    elif theme == "femboy":
+        order = ["waifu_pics", "e621", "rule34"]
     else:
         order = ["nekos_best", "nekos_life", "nekosapi", "waifu_pics", "nekobot"]
 

@@ -52,6 +52,7 @@ class NekosBestProvider:
         rating: UserRating,
         timeout: float,
         theme: Theme,
+        randomize: bool = False,
     ) -> list[RemoteImage]:
         if count <= 0:
             return []
@@ -74,3 +75,4 @@ class NekosBestProvider:
         if not isinstance(payload, Mapping):
             return []
         return parse_nekos_best_payload(payload, theme=theme)
+

@@ -11,7 +11,7 @@ import httpx
 from catgirl_downloader.fs import (
     atomic_write_bytes,
     build_filename,
-    ensure_category_dir,
+    ensure_media_dir,
     extension_from_content_type,
 )
 from catgirl_downloader.models import DownloadResult, DownloadSummary, RemoteImage, Theme, UserRating
@@ -73,7 +73,7 @@ async def _download_one(
                 raise ValueError(f"Non-image content type: {content_type or 'missing'}")
 
             extension = extension_from_content_type(content_type, image.url)
-            category_dir = ensure_category_dir(out_dir, image.category)
+            category_dir = ensure_media_dir(out_dir, image.category, image.rating)
             file_name = build_filename(image.provider, image.url, extension)
             destination = category_dir / file_name
             atomic_write_bytes(destination, response.content)
@@ -142,6 +142,7 @@ class DownloadRunner:
     timeout: float
     rating: UserRating
     theme: Theme = "catgirl"
+    randomize: bool = False
     warnings: list[str] = field(default_factory=list)
     results: list[DownloadResult] = field(default_factory=list)
 
@@ -183,7 +184,13 @@ class DownloadRunner:
                 f"Supported: {', '.join(provider.supported_ratings)}."
             )
             return []
-        return await provider.fetch_candidates(count, self.rating, self.timeout, self.theme)
+        return await provider.fetch_candidates(
+            count,
+            self.rating,
+            self.timeout,
+            self.theme,
+            randomize=self.randomize,
+        )
 
     async def _fetch_auto_candidates(self) -> list[RemoteImage]:
         collected: list[RemoteImage] = []
@@ -224,6 +231,7 @@ async def run_download(
     timeout: float,
     rating: UserRating,
     theme: Theme = "catgirl",
+    randomize: bool = False,
 ) -> tuple[list[DownloadResult], DownloadSummary, list[str]]:
     runner = DownloadRunner(
         count=count,
@@ -234,6 +242,7 @@ async def run_download(
         timeout=timeout,
         rating=rating,
         theme=theme,
+        randomize=randomize,
     )
     results = await runner.run()
     return results, runner.summary(), runner.warnings

@@ -5,12 +5,12 @@ from typing import Literal
 
 Rating = Literal["safe", "suggestive", "borderline", "explicit", "unknown"]
 UserRating = Literal["any", "safe", "suggestive", "borderline", "explicit"]
-Theme = Literal["catgirl", "neko", "kitsune"]
+Theme = Literal["catgirl", "neko", "kitsune", "femboy"]
 DownloadStatus = Literal["ok", "failed", "skipped_duplicate"]
 
 VALID_USER_RATINGS: set[str] = {"any", "safe", "suggestive", "borderline", "explicit"}
 KNOWN_RATINGS: set[str] = {"safe", "suggestive", "borderline", "explicit", "unknown"}
-VALID_THEMES: set[str] = {"catgirl", "neko", "kitsune"}
+VALID_THEMES: set[str] = {"catgirl", "neko", "kitsune", "femboy"}
 
 
 def normalize_rating(value: str | None) -> Rating:

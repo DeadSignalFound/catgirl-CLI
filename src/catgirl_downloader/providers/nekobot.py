@@ -36,6 +36,7 @@ class NekobotProvider:
         rating: UserRating,
         timeout: float,
         theme: Theme,
+        randomize: bool = False,
     ) -> list[RemoteImage]:
         if count <= 0:
             return []

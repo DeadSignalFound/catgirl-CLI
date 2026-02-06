@@ -13,6 +13,7 @@ API_BASE = "https://api.waifu.pics"
 THEME_ENDPOINT: dict[Theme, str] = {
     "catgirl": "neko",
     "neko": "neko",
+    "femboy": "trap",
 }
 
 
@@ -26,7 +27,7 @@ def parse_waifu_pics_payload(payload: dict[str, Any]) -> str:
 class WaifuPicsProvider:
     name = "waifu_pics"
     supports_rating_filter = True
-    supported_themes: tuple[Theme, ...] = ("catgirl", "neko")
+    supported_themes: tuple[Theme, ...] = ("catgirl", "neko", "femboy")
     supported_ratings: tuple[UserRating, ...] = ("any", "safe", "explicit")
 
     async def fetch_candidates(
@@ -35,6 +36,7 @@ class WaifuPicsProvider:
         rating: UserRating,
         timeout: float,
         theme: Theme,
+        randomize: bool = False,
     ) -> list[RemoteImage]:
         if count <= 0:
             return []
@@ -45,8 +47,15 @@ class WaifuPicsProvider:
         candidates: list[RemoteImage] = []
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
             for _ in range(count):
-                mode, mapped_rating = self._resolve_mode(rating)
-                endpoint = f"{API_BASE}/{mode}/{endpoint_theme}"
+                if theme == "femboy":
+                    if rating == "safe":
+                        return []
+                    mode = "nsfw"
+                    mapped_rating = "explicit"
+                    endpoint = f"{API_BASE}/{mode}/{endpoint_theme}"
+                else:
+                    mode, mapped_rating = self._resolve_mode(rating)
+                    endpoint = f"{API_BASE}/{mode}/{endpoint_theme}"
                 try:
                     response = await client.get(endpoint)
                     response.raise_for_status()
@@ -61,7 +70,7 @@ class WaifuPicsProvider:
                         category=theme,
                         url=url,
                         rating=normalize_rating(mapped_rating),
-                        tags=[endpoint_theme, theme],
+                        tags=[endpoint_theme, theme, "waifu.pics"],
                     )
                 )
         return candidates
