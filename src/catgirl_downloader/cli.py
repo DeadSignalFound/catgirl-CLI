@@ -9,7 +9,7 @@ from typing import Annotated, Any
 
 import anyio
 import typer
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -34,7 +34,21 @@ app = typer.Typer(
 )
 
 CONSOLE = Console(highlight=False)
-load_dotenv()
+
+
+def _load_environment() -> None:
+    # Prefer the shell's current directory so installed entry points pick up local .env files.
+    cwd_env = Path.cwd() / ".env"
+    if cwd_env.exists():
+        load_dotenv(dotenv_path=cwd_env)
+        return
+
+    discovered = find_dotenv(usecwd=True)
+    if discovered:
+        load_dotenv(dotenv_path=discovered)
+
+
+_load_environment()
 
 
 class ProviderChoice(str, Enum):

@@ -128,8 +128,27 @@ Current provider set:
 
 ## Environment
 
-The app loads `.env` automatically.
+The app loads `.env` automatically from your current working directory first, then falls back to standard dotenv discovery.
 
 Required for femboy APIs:
 - `E621_USER_AGENT` (recommended, set to your own value)
 - `RULE34_USER_ID` and `RULE34_API_KEY` (required for `rule34` provider)
+
+### Troubleshooting `rule34 requires RULE34_USER_ID and RULE34_API_KEY`
+
+If you still see this warning even with correct values in `.env`:
+
+1. Run the command from the project directory that contains `.env`.
+2. Reinstall the local CLI so the latest source is used:
+
+```bash
+py -m pip install -e .
+```
+
+3. Verify values are visible in your Windows shell:
+
+```bat
+echo %RULE34_USER_ID%
+echo %RULE34_API_KEY%
+where catgirl
+```
